@@ -1,0 +1,2123 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>席割り決定モード</title>
+<script>
+// 部活会計管理アプリの中（ログイン後）でのみ使う。直接開かれたらアプリへ移動。
+if (window.top === window) location.replace('./');
+</script>
+<style>
+:root {
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  
+  /* Car Theme Accent */
+  --car-accent: #2563eb;
+  --car-accent-hover: #1d4ed8;
+  --car-bg-soft: #eff6ff;
+
+  /* Room Theme Accent */
+  --room-accent: #0d9488;
+  --room-accent-hover: #0f766e;
+  --room-bg-soft: #f0fdf4;
+  --meal-accent: #ea580c;
+  --meal-accent-hover: #c2410c;
+  --meal-bg-soft: #fff7ed;
+
+  --ok: #10b981;
+  --danger: #ef4444;
+  --shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+header {
+  padding: 24px max(20px, calc((100% - 1180px)/2));
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: white;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+header p {
+  margin: 6px 0 0;
+  color: #94a3b8;
+  font-size: 13.5px;
+}
+
+/* Mode Switcher Buttons */
+.mode-switch {
+  display: flex;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px;
+  border-radius: 14px;
+  gap: 4px;
+  backdrop-filter: blur(8px);
+}
+
+.mode-btn {
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mode-btn:hover {
+  color: white;
+}
+
+.mode-btn.active.car-mode {
+  background: var(--car-accent);
+  color: white;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.mode-btn.active.room-mode {
+  background: var(--room-accent);
+  color: white;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
+}
+
+main {
+  max-width: 1180px;
+  margin: 28px auto;
+  padding: 0 16px;
+}
+
+.steps {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.step {
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+body.theme-car .step.active {
+  background: var(--car-accent);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+body.theme-room .step.active {
+  background: var(--room-accent);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+}
+body.theme-meal .step.active {
+  background: var(--meal-accent);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+}
+
+.panel {
+  display: none;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 26px;
+  box-shadow: var(--shadow);
+}
+
+.panel.active {
+  display: block;
+  animation: fadeIn 0.25s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+h2 { margin: 0 0 6px; font-size: 20px; font-weight: 800; }
+.sub { color: var(--muted); margin-top: 0; font-size: 14px; margin-bottom: 20px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+button {
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  color: white;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+body.theme-car button.primary-btn { background: var(--car-accent); }
+body.theme-car button.primary-btn:hover { background: var(--car-accent-hover); transform: translateY(-1px); }
+
+body.theme-room button.primary-btn { background: var(--room-accent); }
+body.theme-room button.primary-btn:hover { background: var(--room-accent-hover); transform: translateY(-1px); }
+body.theme-meal button.primary-btn { background: var(--meal-accent); }
+body.theme-meal button.primary-btn:hover { background: var(--meal-accent-hover); transform: translateY(-1px); }
+
+button.secondary { background: #f1f5f9; color: #334155; border: 1px solid var(--line); }
+button.secondary:hover { background: #e2e8f0; transform: none; }
+button.danger { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; }
+button.danger:hover { background: #fee2e2; }
+button.success { background: var(--ok); color: white; }
+button.success:hover { background: #059669; }
+button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+input[type=file] { display: none; }
+input[type=text], input[type=number], select {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 12px;
+  background: white;
+  color: var(--ink);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+body.theme-car input:focus, body.theme-car select:focus { border-color: var(--car-accent); }
+body.theme-room input:focus, body.theme-room select:focus { border-color: var(--room-accent); }
+body.theme-meal input:focus, body.theme-meal select:focus { border-color: var(--meal-accent); }
+
+.upload-area { margin: 18px 0 16px; }
+.drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 150px;
+  padding: 24px;
+  text-align: center;
+  border: 2px dashed #cbd5e1;
+  border-radius: 18px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.drop:hover, .drop.dragover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+  transform: translateY(-2px);
+}
+
+.drop .upload-icon { font-size: 34px; line-height: 1; }
+.drop .upload-title { font-size: 15px; font-weight: 800; color: #1e293b; }
+.drop .upload-sub { font-size: 13px; color: var(--muted); }
+
+.file-name { display: none; margin-top: 10px; padding: 10px 14px; border-radius: 10px; background: #f1f5f9; color: #334155; font-size: 13px; font-weight: 600; }
+.file-name.show { display: block; }
+
+.list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin: 20px 0; }
+.member {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+}
+
+body.theme-car .member input[type=checkbox] { accent-color: var(--car-accent); }
+body.theme-room .member input[type=checkbox] { accent-color: var(--room-accent); }
+body.theme-meal .member input[type=checkbox] { accent-color: var(--meal-accent); }
+.member input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; }
+.member .edit-name { flex: 1; min-width: 0; }
+.member .edit-name input { width: 100%; font-weight: 600; }
+
+.notice { padding: 12px 16px; border-radius: 12px; background: #eff6ff; color: #1d4ed8; margin: 16px 0; font-size: 13.5px; font-weight: 500; border: 1px solid #bfdbfe; }
+
+/* Car/Room Cards Grid */
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-top: 20px; }
+.item-card { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: white; box-shadow: 0 4px 14px rgba(0,0,0,0.03); }
+
+.card-head { padding: 14px 16px; background: #f8fafc; border-bottom: 1px solid var(--line); }
+.card-head strong { font-size: 16px; color: #0f172a; }
+
+.slots { padding: 16px; min-height: 120px; }
+.slot { border: 1.5px dashed #cbd5e1; border-radius: 10px; padding: 8px 10px; margin: 8px 0; background: #fafafa; min-height: 42px; transition: all 0.2s; }
+
+body.theme-car .slot.drop-target { border-color: var(--car-accent); background: var(--car-bg-soft); border-style: solid; }
+body.theme-room .slot.drop-target { border-color: var(--room-accent); background: var(--room-bg-soft); border-style: solid; }
+body.theme-meal .slot.drop-target { border-color: var(--meal-accent); background: var(--meal-bg-soft); border-style: solid; }
+.slot select { width: 100%; }
+
+.unassigned { margin-top: 24px; padding: 18px; border-radius: 16px; background: #fffbebe6; border: 1px solid #fef3c7; }
+.unassigned-title { font-size: 14.5px; font-weight: 800; color: #92400e; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+
+.drag-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  margin: 4px;
+  background: #ffffff;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  cursor: grab;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1e293b;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+body.theme-car .drag-source:hover { border-color: var(--car-accent); transform: translateY(-2px); box-shadow: 0 6px 14px rgba(37, 99, 235, 0.15); }
+body.theme-room .drag-source:hover { border-color: var(--room-accent); transform: translateY(-2px); box-shadow: 0 6px 14px rgba(13, 148, 136, 0.15); }
+body.theme-meal .drag-source:hover { border-color: var(--meal-accent); transform: translateY(-2px); box-shadow: 0 6px 14px rgba(234, 88, 12, 0.15); }
+
+.drag-source:active { cursor: grabbing; transform: scale(0.97); }
+.drag-source.dragging { opacity: 0.35; }
+
+.small { font-size: 12px; color: var(--muted); }
+footer { color: var(--muted); text-align: center; padding: 36px 10px 24px; font-size: 12.5px; }
+
+/* --- 追加: 新機能用スタイル --- */
+.saved-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+.saved-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+.saved-item-info { flex: 1; }
+.saved-item-title { font-weight: 700; font-size: 15px; color: #1e293b; display: flex; align-items: center; gap: 8px; }
+.saved-item-date { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.badge { font-size: 10px; padding: 2px 6px; border-radius: 6px; color: white; font-weight: bold; }
+.badge.car { background: var(--car-accent); }
+.badge.room { background: var(--room-accent); }
+.badge.meal { background: var(--meal-accent); }
+.gender-select { width: 88px; flex: 0 0 88px; padding: 7px 8px !important; font-size: 12px !important; font-weight: 700; }
+
+.slot { border: 1.5px dashed #cbd5e1; border-radius: 10px; padding: 2px 4px; margin: 6px 0; background: #fafafa; min-height: 42px; transition: all 0.2s; display: flex; align-items: center; position: relative; }
+.slot.has-member { border-style: solid; background: #ffffff; cursor: grab; }
+.slot.has-member:active { cursor: grabbing; }
+body.theme-car .slot.has-member { border-color: #bfdbfe; background: #eff6ff; }
+body.theme-room .slot.has-member { border-color: #99f6e4; background: #f0fdf4; }
+body.theme-meal .slot.has-member { border-color: #fed7aa; background: #fff7ed; }
+
+.slot select { width: 100%; border: none; background: transparent; font-size: 13.5px; font-weight: 600; color: #64748b; padding: 6px 8px; outline: none; cursor: pointer; border-radius: 8px; }
+.slot select.selected { font-weight: 700; }
+body.theme-car .slot select.selected { color: #1e40af; }
+body.theme-room .slot select.selected { color: #115e59; }
+
+.remove-btn { color: var(--muted); cursor: pointer; padding: 2px 6px; font-weight: bold; border-radius: 6px; font-size: 14px; background: rgba(0,0,0,0.05); transition: all 0.2s;}
+.remove-btn:hover { background: #fee2e2; color: var(--danger); }
+.unassigned.drop-target { background: #fef3c7; border: 1px dashed #f59e0b; }
+
+/* 画像化用コンテナ (画面外) */
+#captureArea { position: absolute; left: -9999px; top: 0; width: 800px; padding: 40px; background: #f8fafc; z-index: -100; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", sans-serif; }
+#captureArea .capture-card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; }
+#captureArea .capture-header { padding: 16px 20px; color: white; display: flex; align-items: center; gap: 12px; }
+#captureArea .car-header { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+#captureArea .room-header { background: linear-gradient(135deg, #0d9488, #0f766e); }
+#captureArea .meal-header { background: linear-gradient(135deg, #ea580c, #c2410c); } .meal-header { background: linear-gradient(135deg, #ea580c, #c2410c); }
+#captureArea .capture-body { padding: 16px 20px; }
+#captureArea .capture-item { padding: 10px 14px; background: #f1f5f9; border-radius: 10px; margin-bottom: 8px; font-weight: 600; font-size: 15px; display:flex; gap:10px; align-items: center; color: #1e293b;}
+#captureArea .capture-item.assistant { background: #fef3c7; border: 1px solid #fde047; }
+#captureArea h1 { text-align: center; margin-bottom: 10px; font-size: 28px; color: #0f172a; font-weight: 800; }
+#captureArea .capture-date { text-align: center; margin-bottom: 30px; color: #64748b; font-size: 14px; }
+#captureArea .grid-col2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+
+@media(max-width:640px) {
+  main { margin: 16px auto; }
+  .panel { padding: 16px; }
+  header { padding: 20px 16px; }
+  .header-top { flex-direction: column; align-items: flex-start; }
+  .mode-switch { width: 100%; }
+  .mode-btn { flex: 1; justify-content: center; }
+}
+
+/* スマホ1画面表示 */
+#mobilePreviewOverlay{position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.72);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:10px;box-sizing:border-box}
+.mobile-preview-shell{width:min(100%,520px);height:min(100%,900px);background:#e2e8f0;border-radius:22px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35);display:flex;flex-direction:column}
+.mobile-preview-toolbar{height:58px;flex:none;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 14px;box-sizing:border-box;font-size:14px}
+.mobile-preview-toolbar div{display:flex;flex-direction:column;gap:2px;min-width:0}.mobile-preview-toolbar span{font-size:10px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mobile-preview-toolbar button{border:0;border-radius:9px;padding:8px 11px;background:#334155;color:#fff;font-weight:700;cursor:pointer}
+.mobile-preview-viewport{position:relative;flex:1;overflow:hidden;background:#cbd5e1}
+.mobile-preview-canvas{width:390px;box-sizing:border-box;padding:18px;background:#f8fafc;color:#0f172a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;transform-origin:top left}
+.m-title{text-align:center;margin-bottom:12px}.m-title h1{font-size:21px;line-height:1.15;margin:0 0 4px;font-weight:900}.m-title p{font-size:10px;color:#64748b;margin:0}.m-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.m-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;box-shadow:0 2px 7px rgba(15,23,42,.06);break-inside:avoid}.m-head{color:#fff;padding:7px 8px;display:flex;align-items:center;gap:6px;font-size:12px;line-height:1.1}.m-head span{font-size:15px}.m-head.car{background:linear-gradient(135deg,#2563eb,#1d4ed8)}.m-head.meal{background:linear-gradient(135deg,#ea580c,#c2410c)}.m-head.room{background:linear-gradient(135deg,#0d9488,#0f766e)}.m-body{padding:5px;display:flex;flex-direction:column;gap:3px}.m-member{display:flex;align-items:center;gap:4px;background:#f1f5f9;border-radius:5px;padding:4px 5px;font-size:10px;font-weight:700;line-height:1.1;min-height:11px;box-sizing:border-box}.m-member span{font-size:10px}.m-assistant{background:#fef3c7;border:1px solid #fde68a}.m-empty{display:block;text-align:center;color:#94a3b8;font-size:9px;padding:4px}.m-footer{text-align:center;color:#94a3b8;font-size:8px;margin-top:10px}
+@media(max-width:430px){.mobile-preview-shell{height:100%;border-radius:16px}.mobile-preview-toolbar{height:52px}.mobile-preview-canvas{width:390px}}
+</style>
+</head>
+<body class="theme-car">
+<header>
+  <div class="header-top">
+    <div>
+      <h1 id="appTitle">🚗 車割り決定アプリ</h1>
+      <p>メンバーデータ連携 | オシャレな決定表HTMLファイル生成</p>
+    </div>
+    <!-- モード選択タブ -->
+    <div class="mode-switch">
+      <button class="mode-btn active car-mode" id="modeCarBtn">🚗 車割りモード</button>
+      <button class="mode-btn room-mode" id="modeRoomBtn">🏠 部屋割りモード</button>
+      <button class="mode-btn meal-mode" id="modeMealBtn">🍽️ 席割りモード</button>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- Dynamic Steps Bar -->
+<div class="steps" id="stepsBar"></div>
+
+<!-- STEP 1: メンバー抽出・保存 (共通) -->
+<section class="panel active" id="stepMembers">
+  
+  <!-- 保存データ一覧エリア -->
+  <div id="savedDataSection" style="display:none; margin-bottom: 36px; padding-bottom: 24px; border-bottom: 2px dashed var(--line);">
+    <h2>📂 保存済みの割り振りデータ</h2>
+    <p class="sub">過去に作成したデータを開いて続きから編集できます。</p>
+    <div id="savedList" class="saved-list"></div>
+    <div class="row" style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--line);">
+      <button id="exportDataBtn" class="primary-btn" style="background: #0284c7;">📤 データ書き出し (共有用)</button>
+      <label class="primary-btn" style="background: #10b981; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 12px; font-weight: 700; font-size: 14px; color: white;">
+        📥 データ読み込み
+        <input type="file" id="importDataInput" accept=".json" style="display: none;">
+      </label>
+    </div>
+  </div>
+
+  <h2>STEP 1 メンバーの自動抽出・管理（共通名簿）</h2>
+  <p class="sub">名簿やLINEなどの画像から名前を自動抽出します。登録メンバーは車割り・部屋割りで共通利用されます。</p>
+  
+  <div class="upload-area">
+    <label class="drop" id="dropZone" for="file">
+      <span class="upload-icon">📷</span>
+      <span class="upload-title">名簿やLINEなどの画像をアップロード</span>
+      <span class="upload-sub">ドラッグ＆ドロップ または クリックして選択 （PNG / JPG / WEBP）</span>
+    </label>
+    <input id="file" type="file" accept="image/*">
+    <div id="fileName" class="file-name"></div>
+  </div>
+  
+  <div id="ocrStatus" class="notice" style="display:none"></div>
+  
+  <div class="row" style="margin-top:16px; justify-content:space-between">
+    <div class="row">
+      <input id="manualName" type="text" placeholder="名前を手動追加">
+      <button id="addBtn" class="primary-btn">＋ 追加</button>
+      <button id="importClubMembersBtn" class="secondary" style="display:none">👥 部員名簿から読み込む</button>
+    </div>
+    <div class="row">
+      <button id="selectAll" class="secondary">全選択</button>
+      <button id="clearAll" class="secondary">全解除</button>
+      <button id="resetStorage" class="danger">🧹 名簿をクリア</button>
+    </div>
+  </div>
+  
+  <div id="memberList" class="list"></div>
+  
+  <div class="row" style="margin-top:20px">
+    <button id="toStep2" class="primary-btn">次へ進む →</button>
+  </div>
+</section>
+
+<!-- STEP 2 (CAR): ドライバー選定 -->
+<section class="panel" id="stepCarDrivers">
+  <h2>STEP 2 ドライバーの指定</h2>
+  <p class="sub">車を出してくれる人にチェックを入れてください。</p>
+  <div id="driverList" class="list"></div>
+  <div class="row" style="margin-top:20px">
+    <button class="secondary back-to-1">← 戻る</button>
+    <button id="toCarCapacity" class="primary-btn">車定員の設定へ →</button>
+  </div>
+</section>
+
+<!-- STEP 3 (CAR): 車ごとの定員設定 -->
+<section class="panel" id="stepCarCapacity">
+  <h2>STEP 3 車ごとの定員設定</h2>
+  <p class="sub">ドライバーを除いて乗せられる「乗車定員」を設定してください。</p>
+  <div id="carSettings" class="cards-grid"></div>
+  <div class="row" style="margin-top:20px">
+    <button id="backToCarDrivers" class="secondary">← 戻る</button>
+    <button id="toCarAssign" class="primary-btn">メンバー割り振りへ →</button>
+  </div>
+</section>
+
+<!-- STEP 2 (ROOM): 部屋数・初期定員設定 -->
+<section class="panel" id="stepRoomConfig">
+  <h2>STEP 2 部屋数と定員の設定</h2>
+  <p class="sub">準備する部屋数と基本定員を入力して部屋枠を作成します。</p>
+  
+  <div class="row" style="gap:16px; margin-bottom:20px; background:#f8fafc; padding:18px; border-radius:14px; border:1px solid var(--line)">
+    <div>
+      <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px">部屋の数</label>
+      <input type="number" id="roomCountInput" min="1" max="30" value="3" style="width:100px">
+    </div>
+    <div>
+      <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px">1部屋あたりの基本定員</label>
+      <input type="number" id="roomCapacityInput" min="1" max="20" value="4" style="width:100px">
+    </div>
+    <div style="align-self:flex-end">
+      <button id="generateRoomsBtn" class="primary-btn">🏠 部屋リストを生成</button>
+    </div>
+  </div>
+
+  <div id="roomSettingsList" class="cards-grid"></div>
+
+  <div class="row" style="margin-top:24px">
+    <button class="secondary back-to-1">← 戻る</button>
+    <button id="toRoomAssign" class="primary-btn">部屋割り振りへ →</button>
+  </div>
+</section>
+
+<!-- STEP 2 (MEAL): 机数・定員設定 -->
+<section class="panel" id="stepMealConfig">
+  <h2>STEP 2 ご飯会の机数と定員の設定</h2>
+  <p class="sub">机の数と基本定員を入力したあと、机ごとに名前・定員を変更できます。</p>
+  <div class="row" style="gap:16px; margin-bottom:20px; background:#fff7ed; padding:18px; border-radius:14px; border:1px solid #fed7aa">
+    <div>
+      <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px">机の数</label>
+      <input type="number" id="tableCountInput" min="1" max="30" value="4" style="width:100px">
+    </div>
+    <div>
+      <label style="display:block; font-size:12px; font-weight:700; margin-bottom:4px">1机あたりの基本定員</label>
+      <input type="number" id="tableCapacityInput" min="1" max="30" value="6" style="width:100px">
+    </div>
+    <div style="align-self:flex-end">
+      <button id="generateTablesBtn" class="primary-btn">🍽️ 机リストを生成</button>
+    </div>
+  </div>
+  <div id="tableSettingsList" class="cards-grid"></div>
+  <div class="row" style="margin-top:24px">
+    <button class="secondary back-to-1">← 戻る</button>
+    <button id="toMealAssign" class="primary-btn">席割りへ →</button>
+  </div>
+</section>
+
+<!-- STEP 4 (CAR) / STEP 3 (ROOM/MEAL): 共通割り振り＆出力パネル -->
+<section class="panel" id="stepAssign">
+  <h2 id="assignTitle">メンバーの割り振り＆共有</h2>
+  <p class="sub" id="assignSub">メンバーを枠内にドラッグ＆ドロップ（またはドロップダウン選択）で割り振ります。</p>
+  
+  <div class="row" style="margin:12px 0 16px; justify-content:space-between">
+    <div class="row" style="gap:8px">
+      <button id="randomAssignBtn" class="secondary" style="background:#f0fdf4; color:#166534; border-color:#bbf7d0">🎲 ランダム均等配置</button>
+      <button id="genderBalancedAssignBtn" class="secondary" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe">⚖️ 男女均等割り振り</button>
+    </div>
+    <span class="small" style="align-self:center">💡 ネームタグをドラッグして移動できます</span>
+  </div>
+
+  <div id="assignGrid" class="cards-grid"></div>
+
+  <div class="unassigned" id="unassignedContainer">
+    <div class="unassigned-title">👤 未割り当てメンバー</div>
+    <!-- 割り振り画面での直接メンバー追加フォーム -->
+    <div class="row" style="margin-bottom:12px; gap:8px;">
+      <input type="text" id="quickAddMemberName" placeholder="追加するメンバー名" style="flex:1; max-width:240px;">
+      <button id="quickAddMemberBtn" class="primary-btn" style="padding: 6px 14px; font-size: 13px;">＋ メンバー追加</button>
+      <button id="jumpToStep1Btn" class="secondary" style="padding: 6px 14px; font-size: 13px;">📝 全体名簿を編集</button>
+    </div>
+    <div id="unassignedArea"></div>
+  </div>
+
+  <!-- データ保存UI -->
+  <div class="row" style="margin-top:24px; background:#f8fafc; padding:16px; border-radius:12px; border:1px solid var(--line);">
+    <input type="text" id="saveTitleInput" placeholder="例: 夏合宿 車割り" style="flex:1; min-width:200px;">
+    <button id="saveDataBtn" class="primary-btn" style="background:#475569;">💾 新規保存</button>
+    <button id="overwriteSaveDataBtn" class="primary-btn" style="background:#0284c7; display:none;">🔄 上書き保存</button>
+  </div>
+
+  <div class="row" style="margin-top:24px; gap:12px; flex-wrap: wrap;">
+    <button id="assignBackBtn" class="secondary">← 前の設定に戻る</button>
+    <button id="downloadImageBtn" class="primary-btn" style="background:#8b5cf6;">🖼️ 画像(PNG)を保存</button>
+    <button id="downloadHtmlBtn" class="success">✨ Webページ(HTML)を保存</button>
+    <button id="mobilePreviewBtn" class="primary-btn" style="background:#0f766e;">📱 スマホ用に表示</button>
+    <button id="makeOutputBtn" class="secondary">📋 テキスト作成</button>
+  </div>
+
+  <div id="outputContainer" style="display:none; margin-top:16px">
+    <div class="row" style="justify-content:space-between; margin-bottom:8px">
+      <span class="small" style="font-weight:700">LINE・チャット用テキスト:</span>
+      <button id="copyBtn" class="secondary" style="padding:4px 10px; font-size:12px">コピー</button>
+    </div>
+    <textarea id="outputText" readonly style="width:100%; height:140px; border-radius:10px; border:1px solid var(--line); padding:12px; font-family:monospace; font-size:13px; background:#0f172a; color:#f8fafc"></textarea>
+  </div>
+</section>
+</main>
+
+<footer>大学部活・サークル・旅行向け 車割り・部屋割り・ご飯会席割り決定 Web App</footer>
+
+<!-- 画像化用の一時コンテナ -->
+<div id="captureArea"></div>
+
+<!-- OCR Library -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<!-- html2canvas Library -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+<script>
+// Key for persistent saves storage
+const STORAGE_KEY_SAVES = 'allocation_app_saves';
+const STORAGE_KEY_MEMBERS = 'allocation_app_members';
+
+// メンバー安全削除関数（割り当て・ドライバーインデックスの連動調整）
+function deleteMember(targetIndex) {
+  if (targetIndex < 0 || targetIndex >= state.members.length) return;
+  
+  state.members.splice(targetIndex, 1);
+  
+  // ドライバーインデックスの調整
+  state.drivers = state.drivers
+    .filter(d => d !== targetIndex)
+    .map(d => d > targetIndex ? d - 1 : d);
+    
+  // 車のドライバー参照調整
+  for (let i = state.cars.length - 1; i >= 0; i--) {
+    if (state.cars[i].driver === targetIndex) {
+      state.cars.splice(i, 1);
+      delete state.carAssign[i];
+    } else if (state.cars[i].driver > targetIndex) {
+      state.cars[i].driver -= 1;
+    }
+  }
+  
+  // 割り当ての調整
+  const updateAssign = (assignObj) => {
+    Object.keys(assignObj).forEach(k => {
+      assignObj[k] = (assignObj[k] || []).map(mIdx => {
+        if (mIdx === targetIndex) return null;
+        if (mIdx > targetIndex) return mIdx - 1;
+        return mIdx;
+      });
+    });
+  };
+  
+  updateAssign(state.carAssign);
+  updateAssign(state.roomAssign);
+  updateAssign(state.tableAssign);
+  
+  saveMembersToStorage();
+  if (state.stepIndex === 3 || (state.mode === 'room' && state.stepIndex === 2) || (state.mode === 'meal' && state.stepIndex === 2)) {
+    renderAssignGrid();
+  } else {
+    renderMemberList();
+  }
+}
+
+// Utility helper functions
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function cleanName(name) {
+  if (!name) return '';
+  return name.replace(/[\s\u3000]+/g, ' ').trim();
+}
+
+// Main Application State
+const state = {
+  mode: 'car', // 'car' | 'room' | 'meal'
+  stepIndex: 0,
+  activeSaveId: null, // Track loaded save ID for overwrite feature
+  members: [], // [{ name: string, selected: boolean, gender: 'male'|'female'|'unknown' }]
+  
+  // 車割りデータ
+  drivers: [],   // [memberIndex]
+  cars: [],      // [{ driver: memberIndex, capacity: number }]
+  carAssign: {}, // { carIndex: [memberIndex | null] }
+
+  // 部屋割りデータ
+  rooms: [],     // [{ name: string, capacity: number }]
+  roomAssign: {}, // { roomIndex: [memberIndex | null] }
+
+  // ご飯会の席割りデータ
+  tables: [], // [{ name: string, capacity: number }]
+  tableAssign: {} // { tableIndex: [memberIndex | null] }
+};
+
+const $ = id => document.getElementById(id);
+
+// --- メンバー名簿の自動保存・読み込み ---
+function saveMembersToStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(state.members));
+  } catch (e) {
+    console.error('メンバー自動保存に失敗しました:', e);
+  }
+}
+
+function loadMembersFromStorage() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY_MEMBERS);
+    if (data) {
+      state.members = JSON.parse(data).map(m => ({
+        name: m.name || '無名',
+        selected: m.selected !== false,
+        gender: ['male','female','unknown'].includes(m.gender) ? m.gender : 'unknown'
+      }));
+    }
+  } catch (e) {
+    console.error('メンバー読み込みに失敗しました:', e);
+  }
+}
+
+// --- 保存済みの割り振りデータ管理 ---
+function getSavedDatas() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY_SAVES) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function updateSaveButtons() {
+  const overwriteBtn = $('overwriteSaveDataBtn');
+  if (overwriteBtn) {
+    overwriteBtn.style.display = state.activeSaveId ? 'inline-flex' : 'none';
+  }
+}
+
+function renderSavedList() {
+  const saves = getSavedDatas();
+  const sec = $('savedDataSection');
+  const list = $('savedList');
+  if (!list || !sec) return;
+  list.innerHTML = '';
+  
+  if (saves.length === 0) {
+    sec.style.display = 'none';
+    return;
+  }
+  
+  sec.style.display = 'block';
+  saves.sort((a, b) => b.id - a.id).forEach(s => {
+    const item = document.createElement('div');
+    item.className = 'saved-item';
+    
+    const modeBadge = s.state.mode === 'car'
+      ? '<span class="badge car">車割り</span>'
+      : (s.state.mode === 'room' ? '<span class="badge room">部屋割り</span>' : '<span class="badge meal">席割り</span>');
+    
+    item.innerHTML = `
+      <div class="saved-item-info">
+        <div class="saved-item-title">${modeBadge} ${escapeHtml(s.title)}</div>
+        <div class="saved-item-date">${s.date}更新</div>
+      </div>
+      <div class="row" style="gap:8px">
+        <button class="primary-btn load-btn" data-id="${s.id}" style="padding: 6px 12px; font-size:12px; background:var(--muted)">開く</button>
+        <button class="danger del-save-btn" data-id="${s.id}" style="padding: 6px 12px; font-size:12px">削除</button>
+      </div>
+    `;
+    list.appendChild(item);
+  });
+
+  list.querySelectorAll('.load-btn').forEach(btn => {
+    btn.onclick = () => {
+      const targetId = Number(btn.dataset.id);
+      const data = getSavedDatas().find(x => x.id === targetId);
+      if (data) {
+        // 保存データから状態を復元
+        Object.assign(state, JSON.parse(JSON.stringify(data.state)));
+        state.members = (state.members || []).map(m => ({
+          name: m.name || '無名',
+          selected: m.selected !== false,
+          gender: ['male','female','unknown'].includes(m.gender) ? m.gender : 'unknown'
+        }));
+        state.activeSaveId = targetId;
+        switchMode(state.mode);
+        state.stepIndex = state.mode === 'car' ? 3 : 2;
+        $('saveTitleInput').value = data.title;
+        renderMemberList();
+        showPanelForCurrentStep();
+      }
+    };
+  });
+
+  list.querySelectorAll('.del-save-btn').forEach(btn => {
+    btn.onclick = () => {
+      if (confirm('この保存データを削除しますか？')) {
+        const targetId = Number(btn.dataset.id);
+        const newSaves = getSavedDatas().filter(x => x.id !== targetId);
+        localStorage.setItem(STORAGE_KEY_SAVES, JSON.stringify(newSaves));
+        if (state.activeSaveId === targetId) {
+          state.activeSaveId = null;
+        }
+        renderSavedList();
+        updateSaveButtons();
+      }
+    };
+  });
+}
+
+$('saveDataBtn').onclick = () => {
+  const title = $('saveTitleInput').value.trim() || '無題のデータ';
+  const saves = getSavedDatas();
+  
+  const newId = Date.now();
+  const newData = {
+    id: newId,
+    title: title,
+    date: new Date().toLocaleString(),
+    state: JSON.parse(JSON.stringify(state))
+  };
+  
+  saves.push(newData);
+  localStorage.setItem(STORAGE_KEY_SAVES, JSON.stringify(saves));
+  state.activeSaveId = newId;
+  updateSaveButtons();
+  alert(`「${title}」として新規保存しました！\n「保存済みの割り振りデータ」からいつでも呼び出せます。`);
+  renderSavedList();
+};
+
+$('overwriteSaveDataBtn').onclick = () => {
+  if (!state.activeSaveId) {
+    alert('上書き対象のデータがありません。新規保存を行ってください。');
+    return;
+  }
+  const title = $('saveTitleInput').value.trim() || '無題のデータ';
+  let saves = getSavedDatas();
+  const idx = saves.findIndex(s => s.id === state.activeSaveId);
+  
+  if (idx !== -1) {
+    saves[idx] = {
+      id: state.activeSaveId,
+      title: title,
+      date: new Date().toLocaleString(),
+      state: JSON.parse(JSON.stringify(state))
+    };
+    localStorage.setItem(STORAGE_KEY_SAVES, JSON.stringify(saves));
+    alert(`「${title}」へ上書き保存しました！`);
+    renderSavedList();
+  } else {
+    alert('保存対象データが見つかりませんでした。新規保存します。');
+    $('saveDataBtn').click();
+  }
+};
+
+function switchMode(mode) {
+  state.mode = mode;
+  state.stepIndex = 0;
+  
+  if (mode === 'car') {
+    document.body.className = 'theme-car';
+    $('appTitle').textContent = '🚗 車割り決定アプリ';
+    $('modeCarBtn').classList.add('active');
+    $('modeRoomBtn').classList.remove('active');
+    $('modeMealBtn').classList.remove('active');
+  } else if (mode === 'room') {
+    document.body.className = 'theme-room';
+    $('appTitle').textContent = '🏠 部屋割り決定アプリ';
+    $('modeCarBtn').classList.remove('active');
+    $('modeRoomBtn').classList.add('active');
+    $('modeMealBtn').classList.remove('active');
+  } else {
+    if (!state.tables.length) generateDefaultTables();
+    document.body.className = 'theme-meal';
+    $('appTitle').textContent = '🍽️ ご飯会・席割り決定アプリ';
+    $('modeCarBtn').classList.remove('active');
+    $('modeRoomBtn').classList.remove('active');
+    $('modeMealBtn').classList.add('active');
+  }
+  
+  showPanelForCurrentStep();
+}
+
+function renderSteps() {
+  const stepsBar = $('stepsBar');
+  if (!stepsBar) return;
+  stepsBar.innerHTML = '';
+  
+  const stepLabels = state.mode === 'car'
+    ? ['STEP 1: メンバー登録', 'STEP 2: ドライバー選択', 'STEP 3: 車定員設定', 'STEP 4: 車割り振り＆出力']
+    : (state.mode === 'room' ? ['STEP 1: メンバー登録', 'STEP 2: 部屋数・定員', 'STEP 3: 部屋割り振り＆出力'] : ['STEP 1: メンバー登録', 'STEP 2: 机数・定員', 'STEP 3: 席割り＆出力']);
+    
+  stepLabels.forEach((label, idx) => {
+    const div = document.createElement('div');
+    div.className = `step ${idx === state.stepIndex ? 'active' : ''}`;
+    div.textContent = label;
+    stepsBar.appendChild(div);
+  });
+}
+
+function showPanelForCurrentStep() {
+  renderSteps();
+  updateSaveButtons();
+  
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  
+  if (state.mode === 'car') {
+    if (state.stepIndex === 0) $('stepMembers').classList.add('active');
+    else if (state.stepIndex === 1) $('stepCarDrivers').classList.add('active');
+    else if (state.stepIndex === 2) $('stepCarCapacity').classList.add('active');
+    else if (state.stepIndex === 3) {
+      setupAssignPanelHeader();
+      renderAssignGrid();
+      $('stepAssign').classList.add('active');
+    }
+  } else if (state.mode === 'room') {
+    if (state.stepIndex === 0) $('stepMembers').classList.add('active');
+    else if (state.stepIndex === 1) $('stepRoomConfig').classList.add('active');
+    else if (state.stepIndex === 2) {
+      setupAssignPanelHeader();
+      renderAssignGrid();
+      $('stepAssign').classList.add('active');
+    }
+  } else {
+    if (state.stepIndex === 0) $('stepMembers').classList.add('active');
+    else if (state.stepIndex === 1) $('stepMealConfig').classList.add('active');
+    else if (state.stepIndex === 2) {
+      setupAssignPanelHeader();
+      renderAssignGrid();
+      $('stepAssign').classList.add('active');
+    }
+  }
+}
+
+function renderMemberList(targetId = 'memberList', isDriverSelection = false) {
+  const el = $(targetId);
+  if (!el) return;
+  el.innerHTML = '';
+  
+  if (state.members.length === 0 && targetId === 'memberList') {
+    el.innerHTML = '<div style="grid-column:1/-1; color:var(--muted); font-size:13px; text-align:center; padding:20px">メンバーが未登録です。画像から読み込むか名前を追加してください。</div>';
+    return;
+  }
+
+  state.members.forEach((m, i) => {
+    const d = document.createElement('label');
+    d.className = 'member';
+    d.innerHTML = `
+      <input type="checkbox" ${isDriverSelection ? (state.drivers.includes(i) ? 'checked' : '') : (m.selected ? 'checked' : '')}>
+      <span class="edit-name"><input type="text" value="${escapeHtml(m.name)}" aria-label="名前を編集"></span>
+      <select class="gender-select" aria-label="${escapeHtml(m.name)}の性別">
+        <option value="unknown" ${m.gender === 'unknown' || !m.gender ? 'selected' : ''}>未設定</option>
+        <option value="male" ${m.gender === 'male' ? 'selected' : ''}>男性</option>
+        <option value="female" ${m.gender === 'female' ? 'selected' : ''}>女性</option>
+      </select>
+      <button type="button" class="danger" style="padding:3px 8px; font-size:11px">削除</button>
+    `;
+
+    const check = d.querySelector('input[type="checkbox"]');
+    const nameInput = d.querySelector('.edit-name input');
+    const genderSelect = d.querySelector('.gender-select');
+    const delBtn = d.querySelector('button');
+
+    check.onchange = e => {
+      if (isDriverSelection) {
+        if (e.target.checked) state.drivers.push(i);
+        else state.drivers = state.drivers.filter(x => x !== i);
+      } else {
+        m.selected = e.target.checked;
+        saveMembersToStorage();
+      }
+    };
+
+    nameInput.onchange = e => {
+      m.name = cleanName(e.target.value) || '無名';
+      saveMembersToStorage();
+    };
+
+    genderSelect.onchange = e => {
+      m.gender = ['male','female','unknown'].includes(e.target.value) ? e.target.value : 'unknown';
+      saveMembersToStorage();
+    };
+
+    delBtn.onclick = () => {
+      deleteMember(i);
+    };
+
+    el.appendChild(d);
+  });
+}
+
+// Add member manually
+$('addBtn').onclick = () => {
+  let n = cleanName($('manualName').value);
+  if (n) {
+    state.members.push({ name: n, selected: true, gender: 'unknown' });
+    $('manualName').value = '';
+    saveMembersToStorage();
+    renderMemberList();
+  }
+};
+
+$('selectAll').onclick = () => {
+  state.members.forEach(m => m.selected = true);
+  saveMembersToStorage();
+  renderMemberList();
+};
+
+$('clearAll').onclick = () => {
+  state.members.forEach(m => m.selected = false);
+  saveMembersToStorage();
+  renderMemberList();
+};
+
+$('resetStorage').onclick = () => {
+  if (confirm('現在のメンバー名簿をクリアしますか？')) {
+    state.members = [];
+    state.drivers = [];
+    saveMembersToStorage();
+    renderMemberList();
+  }
+};
+
+async function runOCR(file) {
+  const st = $('ocrStatus');
+  st.style.display = 'block';
+  st.textContent = '🔍 画像からテキストを解析中（Tesseract.js）...';
+
+  try {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+    });
+
+    const worker = await Tesseract.createWorker('jpn');
+    const { data: { text } } = await worker.recognize(img);
+    await worker.terminate();
+
+    const rawLines = text.split('\n');
+    const candidates = [];
+
+    rawLines.forEach(line => {
+      let cleaned = line.replace(/[^\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\sa-zA-Z]/g, '').trim();
+      cleaned = cleanName(cleaned);
+      if (cleaned.length >= 2 && cleaned.length <= 12) {
+        if (!candidates.includes(cleaned)) {
+          candidates.push(cleaned);
+        }
+      }
+    });
+
+    candidates.forEach(n => {
+      if (!state.members.some(m => m.name === n)) {
+        state.members.push({ name: n, selected: true, gender: 'unknown' });
+      }
+    });
+
+    saveMembersToStorage();
+    renderMemberList();
+    st.textContent = `✅ OCR完了：${candidates.length}名のメンバーを追加・更新しました。`;
+    URL.revokeObjectURL(img.src);
+  } catch (err) {
+    st.textContent = '❌ OCR解析に失敗しました。名前を手動で追加してください。';
+    console.error(err);
+  }
+}
+
+$('file').onchange = async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  $('fileName').textContent = `選択中：${file.name}`;
+  $('fileName').classList.add('show');
+  await runOCR(file);
+};
+
+const dropZone = $('dropZone');
+['dragenter', 'dragover'].forEach(ev => dropZone.addEventListener(ev, e => {
+  e.preventDefault(); dropZone.classList.add('dragover');
+}));
+['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+}));
+dropZone.addEventListener('drop', async e => {
+  const file = e.dataTransfer.files[0];
+  if (!file || !file.type.startsWith('image/')) return;
+  $('fileName').textContent = `選択中：${file.name}`;
+  $('fileName').classList.add('show');
+  await runOCR(file);
+});
+
+// Step 1 -> Step 2
+$('toStep2').onclick = () => {
+  if (!state.members.some(m => m.selected)) {
+    alert('参加メンバーを1人以上選択してください。');
+    return;
+  }
+  
+  if (state.mode === 'car') {
+    renderMemberList('driverList', true);
+  }
+  state.stepIndex = 1;
+  showPanelForCurrentStep();
+};
+
+document.querySelectorAll('.back-to-1').forEach(btn => {
+  btn.onclick = () => {
+    state.stepIndex = 0;
+    showPanelForCurrentStep();
+  };
+});
+
+// Car logic
+$('toCarCapacity').onclick = () => {
+  state.drivers = state.drivers.filter(i => state.members[i]?.selected);
+  if (!state.drivers.length) {
+    alert('ドライバーを1人以上選択してください。');
+    return;
+  }
+  state.cars = state.drivers.map(i => ({ driver: i, capacity: 4 }));
+  renderCarSettings();
+  state.stepIndex = 2;
+  showPanelForCurrentStep();
+};
+
+$('backToCarDrivers').onclick = () => {
+  state.stepIndex = 1;
+  showPanelForCurrentStep();
+};
+
+function renderCarSettings() {
+  const el = $('carSettings');
+  el.innerHTML = '';
+  state.cars.forEach((c, i) => {
+    el.innerHTML += `
+      <div class="item-card">
+        <div class="card-head"><strong>🚗 ${escapeHtml(state.members[c.driver].name)}さんの車</strong></div>
+        <div style="padding:16px">
+          <label style="font-size:13px; font-weight:600">乗車可能定員（ドライバー除外）</label>
+          <input type="number" min="0" max="20" value="${c.capacity}" data-i="${i}" style="width:100%; margin-top:8px">
+        </div>
+      </div>`;
+  });
+  el.querySelectorAll('input').forEach(x => x.oninput = () => {
+    state.cars[x.dataset.i].capacity = Math.max(0, Number(x.value) || 0);
+  });
+}
+
+$('toCarAssign').onclick = () => {
+  state.carAssign = {};
+  state.stepIndex = 3;
+  showPanelForCurrentStep();
+};
+
+// Room logic
+function generateDefaultRooms() {
+  const count = Math.max(1, Number($('roomCountInput').value) || 3);
+  const cap = Math.max(1, Number($('roomCapacityInput').value) || 4);
+  state.rooms = [];
+  for (let i = 1; i <= count; i++) {
+    state.rooms.push({ name: `部屋 ${i}`, capacity: cap });
+  }
+}
+
+$('generateRoomsBtn').onclick = () => {
+  generateDefaultRooms();
+  renderRoomSettings();
+};
+
+function renderRoomSettings() {
+  const el = $('roomSettingsList');
+  el.innerHTML = '';
+  state.rooms.forEach((r, i) => {
+    const card = document.createElement('div');
+    card.className = 'item-card';
+    card.innerHTML = `
+      <div class="card-head" style="display:flex; justify-content:space-between; align-items:center">
+        <strong>🏠 Room ${i + 1}</strong>
+        <button class="danger delete-room-btn" data-i="${i}" style="padding:2px 8px; font-size:11px">削除</button>
+      </div>
+      <div style="padding:16px; display:flex; flex-direction:column; gap:10px">
+        <div>
+          <label style="font-size:12px; font-weight:700">部屋の名称</label>
+          <input type="text" class="room-name-input" value="${escapeHtml(r.name)}" data-i="${i}" style="width:100%; margin-top:4px">
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:700">定員数 (人)</label>
+          <input type="number" min="1" max="20" class="room-cap-input" value="${r.capacity}" data-i="${i}" style="width:100%; margin-top:4px">
+        </div>
+      </div>`;
+    el.appendChild(card);
+  });
+
+  el.querySelectorAll('.room-name-input').forEach(inp => {
+    inp.onchange = e => { state.rooms[inp.dataset.i].name = e.target.value.trim() || `部屋 ${+inp.dataset.i + 1}`; };
+  });
+  el.querySelectorAll('.room-cap-input').forEach(inp => {
+    inp.onchange = e => { state.rooms[inp.dataset.i].capacity = Math.max(1, Number(e.target.value) || 1); };
+  });
+  el.querySelectorAll('.delete-room-btn').forEach(btn => {
+    btn.onclick = () => {
+      state.rooms.splice(btn.dataset.i, 1);
+      renderRoomSettings();
+    };
+  });
+}
+
+$('toRoomAssign').onclick = () => {
+  if (state.rooms.length === 0) {
+    alert('部屋を1つ以上作成してください。');
+    return;
+  }
+  state.roomAssign = {};
+  state.stepIndex = 2;
+  showPanelForCurrentStep();
+};
+
+// Meal / table logic
+function generateDefaultTables() {
+  const count = Math.max(1, Math.min(30, Number($('tableCountInput').value) || 4));
+  const cap = Math.max(1, Math.min(30, Number($('tableCapacityInput').value) || 6));
+  state.tables = [];
+  for (let i = 1; i <= count; i++) state.tables.push({ name: `机 ${i}`, capacity: cap });
+}
+
+$('generateTablesBtn').onclick = () => {
+  generateDefaultTables();
+  renderTableSettings();
+};
+
+function renderTableSettings() {
+  const el = $('tableSettingsList');
+  el.innerHTML = '';
+  state.tables.forEach((t, i) => {
+    const card = document.createElement('div');
+    card.className = 'item-card';
+    card.innerHTML = `
+      <div class="card-head" style="display:flex; justify-content:space-between; align-items:center">
+        <strong>🍽️ ${escapeHtml(t.name)}</strong>
+        <button class="danger delete-table-btn" data-i="${i}" style="padding:2px 8px; font-size:11px">削除</button>
+      </div>
+      <div style="padding:16px; display:flex; flex-direction:column; gap:10px">
+        <div><label style="font-size:12px; font-weight:700">机の名称</label>
+          <input type="text" class="table-name-input" value="${escapeHtml(t.name)}" data-i="${i}" style="width:100%; margin-top:4px"></div>
+        <div><label style="font-size:12px; font-weight:700">定員数 (人)</label>
+          <input type="number" min="1" max="30" class="table-cap-input" value="${t.capacity}" data-i="${i}" style="width:100%; margin-top:4px"></div>
+      </div>`;
+    el.appendChild(card);
+  });
+  el.querySelectorAll('.table-name-input').forEach(inp => inp.onchange = e => {
+    state.tables[+inp.dataset.i].name = e.target.value.trim() || `机 ${+inp.dataset.i + 1}`;
+  });
+  el.querySelectorAll('.table-cap-input').forEach(inp => inp.onchange = e => {
+    const i=+inp.dataset.i, cap=Math.max(1,Math.min(30,Number(e.target.value)||1));
+    state.tables[i].capacity=cap;
+  });
+  el.querySelectorAll('.delete-table-btn').forEach(btn => btn.onclick = () => {
+    const i=+btn.dataset.i;
+    state.tables.splice(i,1);
+    state.tableAssign={};
+    renderTableSettings();
+  });
+}
+
+$('toMealAssign').onclick = () => {
+  if (!state.tables.length) { alert('机を1つ以上作成してください。'); return; }
+  state.tableAssign = {};
+  state.stepIndex = 2;
+  showPanelForCurrentStep();
+};
+
+$('assignBackBtn').onclick = () => {
+  if (state.mode === 'car') state.stepIndex = 2;
+  else state.stepIndex = 1;
+  showPanelForCurrentStep();
+};
+
+function setupAssignPanelHeader() {
+  if (state.mode === 'car') {
+    $('assignTitle').textContent = '🚗 メンバーの車割り振り＆共有';
+    $('assignSub').textContent = '各車の枠にメンバーを配置してください。助手席指定も可能です。';
+  } else if (state.mode === 'room') {
+    $('assignTitle').textContent = '🏠 メンバーの部屋割り振り＆共有';
+    $('assignSub').textContent = '各部屋の定員に合わせてメンバーをドラッグ＆ドロップで割り振ります。';
+  } else {
+    $('assignTitle').textContent = '🍽️ ご飯会の席割り振り＆共有';
+    $('assignSub').textContent = '各机の定員に合わせてメンバーをドラッグ＆ドロップ。ランダム配置や入れ替えもできます。';
+  }
+}
+
+function renderAssignGrid() {
+  const isCar = state.mode === 'car';
+  const isMeal = state.mode === 'meal';
+  const participants = state.members.map((m, i) => i).filter(i => {
+    if (!state.members[i].selected) return false;
+    if (isCar && state.drivers.includes(i)) return false; // Drivers handled separately
+    return true;
+  });
+
+  const assignState = isCar ? state.carAssign : (isMeal ? state.tableAssign : state.roomAssign);
+  const itemList = isCar ? state.cars : (isMeal ? state.tables : state.rooms);
+  const gridEl = $('assignGrid');
+  gridEl.innerHTML = '';
+
+  // Clean invalid references
+  Object.keys(assignState).forEach(key => {
+    assignState[key] = (assignState[key] || []).map(x => x != null && participants.includes(x) ? x : null);
+  });
+
+  itemList.forEach((item, itemIdx) => {
+    const card = document.createElement('div');
+    card.className = 'item-card';
+
+    let headerHtml = '';
+    if (isCar) {
+      headerHtml = `
+        <div class="card-head">
+          <strong>🚗 ${escapeHtml(state.members[item.driver].name)}カー</strong>
+          <div class="row" style="margin-top:8px">
+            <label class="small">ドライバー 
+              <select class="driver-edit" data-idx="${itemIdx}">
+                ${state.drivers.map(i => `<option value="${i}" ${i === item.driver ? 'selected' : ''}>${escapeHtml(state.members[i].name)}</option>`).join('')}
+              </select>
+            </label>
+            <label class="small">定員 
+              <input class="cap-edit" type="number" min="0" max="20" value="${item.capacity}" data-idx="${itemIdx}" style="width:60px"> 名
+            </label>
+          </div>
+        </div>`;
+    } else if (isMeal) {
+      headerHtml = `
+        <div class="card-head">
+          <strong>🍽️ ${escapeHtml(item.name)}</strong>
+          <div class="row" style="margin-top:8px">
+            <label class="small">机名 
+              <input class="table-name-edit" type="text" value="${escapeHtml(item.name)}" data-idx="${itemIdx}" style="width:110px">
+            </label>
+            <label class="small">定員 
+              <input class="cap-edit" type="number" min="1" max="30" value="${item.capacity}" data-idx="${itemIdx}" style="width:55px"> 名
+            </label>
+          </div>
+        </div>`;
+    } else {
+      headerHtml = `
+        <div class="card-head">
+          <strong>🏠 ${escapeHtml(item.name)}</strong>
+          <div class="row" style="margin-top:8px">
+            <label class="small">部屋名
+              <input class="room-name-edit" type="text" value="${escapeHtml(item.name)}" data-idx="${itemIdx}" style="width:110px">
+            </label>
+            <label class="small">定員
+              <input class="cap-edit" type="number" min="1" max="20" value="${item.capacity}" data-idx="${itemIdx}" style="width:55px"> 名
+            </label>
+          </div>
+        </div>`;
+    }
+
+    card.innerHTML = headerHtml + `<div class="slots"></div>`;
+    const slotsEl = card.querySelector('.slots');
+
+    for (let slotIdx = 0; slotIdx < item.capacity; slotIdx++) {
+      const val = assignState[itemIdx]?.[slotIdx] ?? null;
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      slot.dataset.itemIdx = itemIdx;
+      slot.dataset.slotIdx = slotIdx;
+
+      const emptyLabel = (isCar && slotIdx === 0) ? '🪑 助手席 (未選択)' : '— 未選択 —';
+
+      // ドロップダウン選択用 <select> 要素の作成
+      const select = document.createElement('select');
+      select.className = 'slot-select';
+      if (val != null) select.classList.add('selected');
+
+      let optionsHtml = `<option value="">${emptyLabel}</option>`;
+
+      participants.forEach(pIdx => {
+        const isCurrent = pIdx === val;
+        let assignedWhere = '';
+
+        // 他のスロットに割り当たっているかチェック
+        Object.keys(assignState).forEach(k => {
+          const arr = assignState[k] || [];
+          arr.forEach((x, s) => {
+            if (x === pIdx && !isCurrent) {
+              const targetName = isCar ? `${state.members[state.cars[k].driver].name}カー` : (isMeal ? state.tables[k].name : state.rooms[k].name);
+              assignedWhere = ` (${targetName})`;
+            }
+          });
+        });
+
+        const rolePrefix = (isCar && slotIdx === 0 && isCurrent) ? '🪑 ' : '';
+        optionsHtml += `<option value="${pIdx}" ${isCurrent ? 'selected' : ''}>${rolePrefix}${escapeHtml(state.members[pIdx].name)}${assignedWhere}</option>`;
+      });
+
+      select.innerHTML = optionsHtml;
+
+      // セレクト変更イベントハンドラ
+      select.onchange = (e) => {
+        const selectedVal = e.target.value;
+        if (selectedVal === '') {
+          removeMemberFromAssignments(val);
+        } else {
+          const targetMember = Number(selectedVal);
+          moveMemberToSlot(targetMember, itemIdx, slotIdx);
+        }
+        renderAssignGrid();
+      };
+
+      // ドラッグ機能（割り当て済みの場合）
+      if (val != null) {
+        slot.draggable = true;
+        slot.classList.add('has-member');
+
+        slot.addEventListener('dragstart', e => {
+          e.dataTransfer.setData('text/plain', String(val));
+          e.dataTransfer.effectAllowed = 'move';
+          slot.classList.add('dragging');
+        });
+        slot.addEventListener('dragend', () => slot.classList.remove('dragging'));
+      }
+
+      // ドロップターゲット処理
+      slot.addEventListener('dragover', e => {
+        e.preventDefault();
+        slot.classList.add('drop-target');
+      });
+      slot.addEventListener('dragleave', () => slot.classList.remove('drop-target'));
+      slot.addEventListener('drop', e => {
+        e.preventDefault();
+        slot.classList.remove('drop-target');
+        const memberIndex = Number(e.dataTransfer.getData('text/plain'));
+        if (!Number.isInteger(memberIndex) || !participants.includes(memberIndex)) return;
+        moveMemberToSlot(memberIndex, itemIdx, slotIdx);
+      });
+
+      slot.appendChild(select);
+      slotsEl.appendChild(slot);
+    }
+    gridEl.appendChild(card);
+  });
+
+  // Attach dynamic event listeners
+  if (isCar) {
+    gridEl.querySelectorAll('.driver-edit').forEach(sel => sel.onchange = () => {
+      const idx = +sel.dataset.idx;
+      const newDriver = +sel.value;
+      Object.keys(assignState).forEach(k => {
+        assignState[k] = (assignState[k] || []).map(x => x === newDriver ? null : x);
+      });
+      state.cars[idx].driver = newDriver;
+      renderAssignGrid();
+    });
+  } else if (isMeal) {
+    gridEl.querySelectorAll('.table-name-edit').forEach(inp => inp.onchange = () => {
+      state.tables[+inp.dataset.idx].name = inp.value.trim() || `机 ${+inp.dataset.idx + 1}`;
+      renderAssignGrid();
+    });
+  } else {
+    gridEl.querySelectorAll('.room-name-edit').forEach(inp => inp.onchange = () => {
+      state.rooms[+inp.dataset.idx].name = inp.value.trim() || `部屋 ${+inp.dataset.idx + 1}`;
+    });
+  }
+
+  gridEl.querySelectorAll('.cap-edit').forEach(inp => inp.onchange = () => {
+    const idx = +inp.dataset.idx;
+    const newCap = Math.max(isCar ? 0 : 1, Math.min(isMeal ? 30 : 20, Number(inp.value) || (isCar ? 0 : 1)));
+    itemList[idx].capacity = newCap;
+    assignState[idx] = (assignState[idx] || []).slice(0, newCap);
+    renderAssignGrid();
+  });
+
+  // Render Unassigned Section
+  const unArea = $('unassignedArea');
+  const assignedSet = new Set(Object.values(assignState).flat().filter(x => x != null));
+  const unassignedList = participants.filter(i => !assignedSet.has(i));
+  unArea.innerHTML = '';
+
+  if (!unassignedList.length) {
+    unArea.innerHTML = '<span class="small" style="color:var(--ok); font-weight:700">🎉 全員の配置が完了しました！</span>';
+  } else {
+    unassignedList.forEach(i => {
+      const tag = document.createElement('div');
+      tag.className = 'drag-source';
+      tag.draggable = true;
+      tag.innerHTML = `
+        <span>${escapeHtml(state.members[i].name)}</span>
+        <span class="remove-btn" title="名簿から削除" style="margin-left:4px;">×</span>
+      `;
+
+      const removeBtn = tag.querySelector('.remove-btn');
+      removeBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm(`「${state.members[i].name}」をメンバーから削除しますか？`)) {
+          deleteMember(i);
+        }
+      };
+
+      tag.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', String(i));
+        e.dataTransfer.effectAllowed = 'move';
+        tag.classList.add('dragging');
+      });
+      tag.addEventListener('dragend', () => tag.classList.remove('dragging'));
+      unArea.appendChild(tag);
+    });
+  }
+
+  // 未割り当て領域をドロップターゲットにする (配置済みからの解除)
+  const unContainer = $('unassignedContainer');
+  unContainer.ondragover = e => { e.preventDefault(); unContainer.classList.add('drop-target'); };
+  unContainer.ondragleave = () => unContainer.classList.remove('drop-target');
+  unContainer.ondrop = e => {
+    e.preventDefault();
+    unContainer.classList.remove('drop-target');
+    const memberIndex = Number(e.dataTransfer.getData('text/plain'));
+    if (Number.isInteger(memberIndex)) {
+      removeMemberFromAssignments(memberIndex);
+      renderAssignGrid();
+    }
+  };
+}
+
+function removeMemberFromAssignments(memberIndex) {
+  if (memberIndex == null) return;
+  const assignState = state.mode === 'car' ? state.carAssign : (state.mode === 'meal' ? state.tableAssign : state.roomAssign);
+  Object.keys(assignState).forEach(k => {
+    assignState[k] = (assignState[k] || []).map(x => x === memberIndex ? null : x);
+  });
+}
+
+function moveMemberToSlot(memberIndex, itemIdx, slotIdx) {
+  const assignState = state.mode === 'car' ? state.carAssign : (state.mode === 'meal' ? state.tableAssign : state.roomAssign);
+  let source = null;
+  Object.keys(assignState).forEach(k => {
+    const arr = assignState[k] || [];
+    arr.forEach((x, idx) => { if (x === memberIndex) source = { itemIdx: +k, slotIdx: idx }; });
+  });
+
+  const targetMember = assignState[itemIdx]?.[slotIdx] ?? null;
+  if (source) {
+    assignState[source.itemIdx][source.slotIdx] = targetMember;
+  } else {
+    removeMemberFromAssignments(memberIndex);
+  }
+  assignState[itemIdx] ??= [];
+  assignState[itemIdx][slotIdx] = memberIndex;
+  renderAssignGrid();
+}
+
+
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// 男女均等割り振り：既存配置も考慮し、各グループの男女比が全体比に近づくように未割り当てを配置
+function balancedGenderAssign() {
+  const isCar = state.mode === 'car';
+  const isMeal = state.mode === 'meal';
+  const assignState = isCar ? state.carAssign : (isMeal ? state.tableAssign : state.roomAssign);
+  const itemList = isCar ? state.cars : (isMeal ? state.tables : state.rooms);
+
+  const participants = state.members.map((m, i) => i).filter(i => {
+    if (!state.members[i].selected) return false;
+    if (isCar && state.drivers.includes(i)) return false;
+    return true;
+  });
+  const assignedSet = new Set(Object.values(assignState).flat().filter(x => x != null));
+  let remaining = shuffleArray(participants.filter(i => !assignedSet.has(i)));
+
+  if (!remaining.length) {
+    renderAssignGrid();
+    alert('未割り当てのメンバーがいません。');
+    return;
+  }
+
+  const known = participants.filter(i => state.members[i].gender === 'male' || state.members[i].gender === 'female');
+  const totalMale = known.filter(i => state.members[i].gender === 'male').length;
+  const totalFemale = known.filter(i => state.members[i].gender === 'female').length;
+  const knownTotal = totalMale + totalFemale;
+  const targetMaleRatio = knownTotal ? totalMale / knownTotal : 0.5;
+
+  const statsFor = (idx) => {
+    const arr = assignState[idx] || [];
+    let male = 0, female = 0, occupants = 0;
+    arr.forEach(x => {
+      if (x == null) return;
+      occupants++;
+      if (state.members[x]?.gender === 'male') male++;
+      else if (state.members[x]?.gender === 'female') female++;
+    });
+    // 車はドライバーもグループの男女比に含める
+    if (isCar) {
+      const d = state.cars[idx]?.driver;
+      if (d != null) {
+        occupants++;
+        if (state.members[d]?.gender === 'male') male++;
+        else if (state.members[d]?.gender === 'female') female++;
+      }
+    }
+    return { male, female, occupants, capacity: itemList[idx].capacity + (isCar ? 1 : 0) };
+  };
+
+  while (remaining.length) {
+    const memberIndex = remaining.shift();
+    const gender = state.members[memberIndex]?.gender || 'unknown';
+    const candidates = itemList.map((item, idx) => {
+      const st = statsFor(idx);
+      const available = item.capacity - (assignState[idx] || []).filter(x => x != null).length;
+      if (available <= 0) return null;
+      const afterOcc = st.occupants + 1;
+      const afterMale = st.male + (gender === 'male' ? 1 : 0);
+      const afterFemale = st.female + (gender === 'female' ? 1 : 0);
+      const knownAfter = afterMale + afterFemale;
+      const ratio = knownAfter ? afterMale / knownAfter : targetMaleRatio;
+      const genderScore = knownAfter ? Math.abs(ratio - targetMaleRatio) : 0;
+      const sizeScore = st.occupants / Math.max(1, st.capacity);
+      const totalCountScore = st.occupants;
+      return { idx, genderScore, sizeScore, totalCountScore, tie: Math.random() };
+    }).filter(Boolean);
+
+    if (!candidates.length) {
+      remaining.unshift(memberIndex);
+      break;
+    }
+
+    candidates.sort((a,b) =>
+      a.genderScore - b.genderScore ||
+      a.sizeScore - b.sizeScore ||
+      a.totalCountScore - b.totalCountScore ||
+      a.tie - b.tie
+    );
+    const chosen = candidates[0].idx;
+    assignState[chosen] ??= [];
+    let targetSlot = -1;
+    for (let s = 0; s < itemList[chosen].capacity; s++) {
+      if (assignState[chosen][s] == null) { targetSlot = s; break; }
+    }
+    if (targetSlot >= 0) assignState[chosen][targetSlot] = memberIndex;
+  }
+
+  renderAssignGrid();
+  if (remaining.length) {
+    alert(`定員不足のため${remaining.length}名を未割り当てにしました。`);
+  }
+  if (!knownTotal) {
+    alert('性別が設定されたメンバーがいないため、男女均等化はできません。名簿で男性・女性を設定してください。');
+  }
+}
+
+$('genderBalancedAssignBtn').onclick = balancedGenderAssign;
+
+$('randomAssignBtn').onclick = () => {
+  const isCar = state.mode === 'car';
+  const assignState = isCar ? state.carAssign : (state.mode === 'meal' ? state.tableAssign : state.roomAssign);
+  const itemList = isCar ? state.cars : (state.mode === 'meal' ? state.tables : state.rooms);
+
+  const participants = state.members.map((m, i) => i).filter(i => {
+    if (!state.members[i].selected) return false;
+    if (isCar && state.drivers.includes(i)) return false;
+    return true;
+  });
+
+  const assignedSet = new Set(Object.values(assignState).flat().filter(x => x != null));
+  let remaining = participants.filter(i => !assignedSet.has(i));
+
+  // Fisher-Yates Shuffle
+  for (let i = remaining.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+  }
+
+  while (remaining.length > 0) {
+    let stats = itemList.map((item, idx) => {
+      let occupants = (assignState[idx] || []).filter(x => x != null).length;
+      return { idx, capacity: item.capacity, occupants, available: item.capacity - occupants };
+    });
+
+    let availables = stats.filter(s => s.available > 0);
+    if (availables.length === 0) break;
+
+    let minOccupants = Math.min(...availables.map(s => s.occupants));
+    let candidates = availables.filter(s => s.occupants === minOccupants);
+    let chosen = candidates[Math.floor(Math.random() * candidates.length)];
+
+    let targetSlot = -1;
+    assignState[chosen.idx] ??= [];
+    for (let s = 0; s < itemList[chosen.idx].capacity; s++) {
+      if (assignState[chosen.idx][s] == null) {
+        targetSlot = s;
+        break;
+      }
+    }
+
+    if (targetSlot !== -1) {
+      let mIdx = remaining.pop();
+      assignState[chosen.idx][targetSlot] = mIdx;
+    }
+  }
+
+  renderAssignGrid();
+  if (remaining.length > 0) {
+    alert(`枠が${remaining.length}名分不足しています。定員または枠数を増やしてください。`);
+  }
+};
+
+// Text Output Generation
+$('makeOutputBtn').onclick = () => {
+  $('outputContainer').style.display = 'block';
+  const isCar = state.mode === 'car';
+  let out = isCar ? '🚗 【車割り決定一覧】\n\n' : (state.mode === 'meal' ? '🍽️ 【ご飯会・席割り決定一覧】\n\n' : '🏠 【部屋割り決定一覧】\n\n');
+
+  if (isCar) {
+    state.cars.forEach((c, ci) => {
+      out += `■ ${state.members[c.driver].name}カー\n`;
+      const a = state.carAssign[ci] || [];
+      a.forEach((idx, s) => {
+        if (idx != null) {
+          out += `  ${s === 0 ? '🪑 助手席: ' : '・ '}${state.members[idx].name}\n`;
+        }
+      });
+      out += '\n';
+    });
+  } else if (state.mode === 'meal') {
+    state.tables.forEach((t, ti) => {
+      out += `■ ${t.name}（定員${t.capacity}名）\n`;
+      const a = state.tableAssign[ti] || [];
+      a.forEach(idx => { if (idx != null) out += `  ・ ${state.members[idx].name}\n`; });
+      out += '\n';
+    });
+  } else if (state.mode === 'meal') {
+    state.tables.forEach((t, ti) => {
+      const tableName = escapeHtml(t.name);
+      const assignedIndices = state.tableAssign[ti] || [];
+      let listHtml = '';
+      assignedIndices.forEach(idx => { if (idx != null) listHtml += `<li class="member-item"><span class="role-badge">👤 席</span><span class="member-name">${escapeHtml(state.members[idx].name)}</span></li>`; });
+      cardsHtml += `<div class="card"><div class="card-header meal-header"><div class="card-icon">🍽️</div><div><div class="sub-label">TABLE</div><div class="main-title">${tableName}</div></div></div><div class="card-body"><ul class="member-list">${listHtml || '<li class="empty">着席者なし</li>'}</ul></div></div>`;
+    });
+  } else if (state.mode === 'meal') {
+    state.tables.forEach((t, ti) => {
+      const tableName = escapeHtml(t.name);
+      const assignedIndices = state.tableAssign[ti] || [];
+      let listHtml = '';
+      assignedIndices.forEach(idx => { if (idx != null) listHtml += `<div class="capture-item"><span style="font-size:16px">👤</span><span>${escapeHtml(state.members[idx].name)}</span></div>`; });
+      cardsHtml += `<div class="capture-card"><div class="capture-header meal-header"><span style="font-size:28px">🍽️</span><div style="line-height:1.2"><div style="font-size:11px;font-weight:bold;letter-spacing:1px;opacity:.9">TABLE</div><div style="font-size:20px;font-weight:bold">${tableName}</div></div></div><div class="capture-body">${listHtml || '<div style="color:#94a3b8;text-align:center;padding:10px">着席者なし</div>'}</div></div>`;
+    });
+  } else {
+    state.rooms.forEach((r, ri) => {
+      out += `■ ${r.name}\n`;
+      const a = state.roomAssign[ri] || [];
+      a.forEach((idx, s) => {
+        if (idx != null) out += `  ・ ${state.members[idx].name}\n`;
+      });
+      out += '\n';
+    });
+  }
+
+  const participants = state.members.map((m, i) => i).filter(i => {
+    if (!state.members[i].selected) return false;
+    if (isCar && state.drivers.includes(i)) return false;
+    return true;
+  });
+
+  const assignState = isCar ? state.carAssign : (state.mode === 'meal' ? state.tableAssign : state.roomAssign);
+  const assignedSet = new Set(Object.values(assignState).flat().filter(x => x != null));
+  const unassigned = participants.filter(i => !assignedSet.has(i));
+  
+  if (unassigned.length) {
+    out += `⚠️ 未割り当て: ${unassigned.map(i => state.members[i].name).join('、')}\n`;
+  }
+  
+  $('outputText').value = out;
+};
+
+$('copyBtn').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText($('outputText').value);
+    alert('クリップボードにコピーしました！');
+  } catch (e) {
+    alert('コピーできませんでした。テキストを選択してコピーしてください。');
+  }
+};
+
+$('downloadHtmlBtn').onclick = () => {
+  const isCar = state.mode === 'car';
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+
+  let cardsHtml = '';
+
+  if (isCar) {
+    state.cars.forEach((c, ci) => {
+      const driverName = escapeHtml(state.members[c.driver].name);
+      const assignedIndices = state.carAssign[ci] || [];
+      let listHtml = '';
+      assignedIndices.forEach((idx, si) => {
+        if (idx != null) {
+          const isAssistant = si === 0;
+          listHtml += `<li class="member-item ${isAssistant ? 'assistant' : ''}"><span class="role-badge">${isAssistant ? '🪑 助手席' : '👤 同乗'}</span><span class="member-name">${escapeHtml(state.members[idx].name)}</span></li>`;
+        }
+      });
+      cardsHtml += `<div class="card"><div class="card-header car-header"><div class="card-icon">🚗</div><div><div class="sub-label">DRIVER</div><div class="main-title">${driverName}カー</div></div></div><div class="card-body"><ul class="member-list">${listHtml || '<li class="empty">同乗者なし</li>'}</ul></div></div>`;
+    });
+  } else if (state.mode === 'meal') {
+    state.tables.forEach((t, ti) => {
+      const tableName = escapeHtml(t.name);
+      const assignedIndices = state.tableAssign[ti] || [];
+      let listHtml = '';
+      assignedIndices.forEach(idx => {
+        if (idx != null) listHtml += `<li class="member-item"><span class="role-badge">👤 席</span><span class="member-name">${escapeHtml(state.members[idx].name)}</span></li>`;
+      });
+      cardsHtml += `<div class="card"><div class="card-header meal-header"><div class="card-icon">🍽️</div><div><div class="sub-label">TABLE</div><div class="main-title">${tableName}</div></div></div><div class="card-body"><ul class="member-list">${listHtml || '<li class="empty">着席者なし</li>'}</ul></div></div>`;
+    });
+  } else {
+    state.rooms.forEach((r, ri) => {
+      const roomName = escapeHtml(r.name);
+      const assignedIndices = state.roomAssign[ri] || [];
+      let listHtml = '';
+      assignedIndices.forEach(idx => {
+        if (idx != null) listHtml += `<li class="member-item"><span class="role-badge">👤 宿泊</span><span class="member-name">${escapeHtml(state.members[idx].name)}</span></li>`;
+      });
+      cardsHtml += `<div class="card"><div class="card-header room-header"><div class="card-icon">🏠</div><div><div class="sub-label">ROOM</div><div class="main-title">${roomName}</div></div></div><div class="card-body"><ul class="member-list">${listHtml || '<li class="empty">宿泊者なし</li>'}</ul></div></div>`;
+    });
+  }
+  const themePrimary = isCar ? '#2563eb' : (state.mode === 'meal' ? '#ea580c' : '#0d9488');
+  const themeHeaderBg = isCar 
+    ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' 
+    : (state.mode === 'meal' ? 'linear-gradient(135deg, #ea580c, #c2410c)' : 'linear-gradient(135deg, #0d9488, #0f766e)');
+  const docTitle = isCar ? `車割り確定結果 - ${dateStr}` : (state.mode === 'meal' ? `ご飯会・席割り確定結果 - ${dateStr}` : `部屋割り確定結果 - ${dateStr}`);
+
+  const fullHtml = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${docTitle}</title>
+<style>
+  :root { --primary: ${themePrimary}; --bg: #f8fafc; --text: #0f172a; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; background: var(--bg); color: var(--text); padding: 28px 16px; }
+  .container { max-width: 960px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 32px; padding: 28px; background: linear-gradient(135deg, #1e293b, #0f172a); color: white; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.12); }
+  header h1 { margin: 0 0 8px; font-size: 26px; font-weight: 800; letter-spacing: 0.5px; }
+  header p { margin: 0; color: #94a3b8; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 20px; }
+  .card { background: white; border-radius: 18px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+  .card-header { color: white; padding: 18px; display: flex; align-items: center; gap: 14px; background: ${themeHeaderBg}; }
+  .card-icon { font-size: 26px; background: rgba(255,255,255,0.2); width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; border-radius: 12px; }
+  .sub-label { font-size: 10px; font-weight: 800; letter-spacing: 1px; opacity: 0.85; }
+  .main-title { font-size: 18px; font-weight: 700; }
+  .card-body { padding: 16px; }
+  .member-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  .member-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #f1f5f9; border-radius: 10px; font-weight: 600; font-size: 14px; }
+  .member-item.assistant { background: #fef3c7; border: 1px solid #fde047; }
+  .member-item.leader { background: #ccfbf1; border: 1px solid #5eead4; }
+  .role-badge { font-size: 11px; font-weight: 700; color: #475569; }
+  .assistant .role-badge { color: #b45309; }
+  .leader .role-badge { color: #0f766e; }
+  .empty { color: #94a3b8; font-size: 13px; text-align: center; padding: 12px; }
+  footer { text-align: center; margin-top: 40px; color: #64748b; font-size: 12.5px; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>${isCar ? '🚗 車割り確定結果' : (state.mode === 'meal' ? '🍽️ ご飯会・席割り確定結果' : '🏠 部屋割り確定結果')}</h1>
+      <p>作成日: ${dateStr}</p>
+    </header>
+    <div class="grid">
+      ${cardsHtml}
+    </div>
+    <footer>Generated by 車割り・部屋割り決定 App</footer>
+  </div>
+</body>
+</html>`;
+
+  const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${isCar ? '車割り' : (state.mode === 'meal' ? '席割り' : '部屋割り')}結果_${dateStr}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+// --- 画像生成機能 ---
+$('downloadImageBtn').onclick = async () => {
+  const isCar = state.mode === 'car';
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+  const area = $('captureArea');
+  
+  let cardsHtml = '';
+
+  if (isCar) {
+    state.cars.forEach((c, ci) => {
+      const driverName = escapeHtml(state.members[c.driver].name);
+      const assignedIndices = state.carAssign[ci] || [];
+      let listHtml = '';
+      assignedIndices.forEach((idx, si) => {
+        if (idx != null) listHtml += `<div class="capture-item ${si === 0 ? 'assistant' : ''}"><span style="font-size:16px">${si === 0 ? '🪑' : '👤'}</span><span>${escapeHtml(state.members[idx].name)}</span></div>`;
+      });
+      cardsHtml += `<div class="capture-card"><div class="capture-header car-header"><span style="font-size:28px">🚗</span><div style="line-height:1.2"><div style="font-size:11px;font-weight:bold;letter-spacing:1px;opacity:.9">DRIVER</div><div style="font-size:20px;font-weight:bold">${driverName}カー</div></div></div><div class="capture-body">${listHtml || '<div style="color:#94a3b8;text-align:center;padding:10px">同乗者なし</div>'}</div></div>`;
+    });
+  } else if (state.mode === 'meal') {
+    state.tables.forEach((t, ti) => {
+      const tableName = escapeHtml(t.name);
+      const assignedIndices = state.tableAssign[ti] || [];
+      let listHtml = '';
+      assignedIndices.forEach(idx => {
+        if (idx != null) listHtml += `<div class="capture-item"><span style="font-size:16px">👤</span><span>${escapeHtml(state.members[idx].name)}</span></div>`;
+      });
+      cardsHtml += `<div class="capture-card"><div class="capture-header meal-header"><span style="font-size:28px">🍽️</span><div style="line-height:1.2"><div style="font-size:11px;font-weight:bold;letter-spacing:1px;opacity:.9">TABLE</div><div style="font-size:20px;font-weight:bold">${tableName}</div></div></div><div class="capture-body">${listHtml || '<div style="color:#94a3b8;text-align:center;padding:10px">着席者なし</div>'}</div></div>`;
+    });
+  } else {
+    state.rooms.forEach((r, ri) => {
+      const roomName = escapeHtml(r.name);
+      const assignedIndices = state.roomAssign[ri] || [];
+      let listHtml = '';
+      assignedIndices.forEach(idx => {
+        if (idx != null) listHtml += `<div class="capture-item"><span style="font-size:16px">👤</span><span>${escapeHtml(state.members[idx].name)}</span></div>`;
+      });
+      cardsHtml += `<div class="capture-card"><div class="capture-header room-header"><span style="font-size:28px">🏠</span><div style="line-height:1.2"><div style="font-size:11px;font-weight:bold;letter-spacing:1px;opacity:.9">ROOM</div><div style="font-size:20px;font-weight:bold">${roomName}</div></div></div><div class="capture-body">${listHtml || '<div style="color:#94a3b8;text-align:center;padding:10px">宿泊者なし</div>'}</div></div>`;
+    });
+  }
+
+  area.innerHTML = `
+    <h1>${isCar ? '🚗 車割り確定結果' : (state.mode === 'meal' ? '🍽️ ご飯会・席割り確定結果' : '🏠 部屋割り確定結果')}</h1>
+    <div class="capture-date">作成日: ${dateStr}</div>
+    <div class="grid-col2">
+      ${cardsHtml}
+    </div>
+  `;
+
+  const btn = $('downloadImageBtn');
+  const orgText = btn.innerHTML;
+  btn.innerHTML = '⏳ 画像を生成中...';
+  btn.disabled = true;
+
+  try {
+    const canvas = await html2canvas(area, {
+      scale: 2,
+      backgroundColor: '#f8fafc',
+      logging: false
+    });
+    
+    const url = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${isCar ? '車割り' : (state.mode === 'meal' ? '席割り' : '部屋割り')}結果_${dateStr}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch(e) {
+    console.error(e);
+    alert('画像の生成に失敗しました。');
+  } finally {
+    btn.innerHTML = orgText;
+    btn.disabled = false;
+    area.innerHTML = '';
+  }
+};
+
+// --- スマホ1画面表示 ---
+$('mobilePreviewBtn').onclick = () => {
+  const isCar = state.mode === 'car';
+  const isMeal = state.mode === 'meal';
+  const title = isCar ? '🚗 車割り確定結果' : (isMeal ? '🍽️ ご飯会・席割り確定結果' : '🏠 部屋割り確定結果');
+  const groups = isCar ? state.cars.length : (isMeal ? state.tables.length : state.rooms.length);
+  const date = new Date();
+  const dateStr = `${date.getFullYear()}年${date.getMonth()+1}月${date.getDate()}日`;
+
+  let cards = '';
+  if (isCar) {
+    state.cars.forEach((c, ci) => {
+      const driver = escapeHtml(state.members[c.driver]?.name || '');
+      const list = (state.carAssign[ci] || []).filter(x => x != null).map((idx, si) =>
+        `<div class="m-member ${si === 0 ? 'm-assistant' : ''}"><span>${si === 0 ? '🪑' : '👤'}</span>${escapeHtml(state.members[idx]?.name || '')}</div>`
+      ).join('');
+      cards += `<div class="m-card"><div class="m-head car"><span>🚗</span><b>${driver}カー</b></div><div class="m-body">${list || '<span class="m-empty">同乗者なし</span>'}</div></div>`;
+    });
+  } else if (isMeal) {
+    state.tables.forEach((t, ti) => {
+      const list = (state.tableAssign[ti] || []).filter(x => x != null).map(idx =>
+        `<div class="m-member"><span>👤</span>${escapeHtml(state.members[idx]?.name || '')}</div>`
+      ).join('');
+      cards += `<div class="m-card"><div class="m-head meal"><span>🍽️</span><b>${escapeHtml(t.name)}</b></div><div class="m-body">${list || '<span class="m-empty">着席者なし</span>'}</div></div>`;
+    });
+  } else {
+    state.rooms.forEach((r, ri) => {
+      const list = (state.roomAssign[ri] || []).filter(x => x != null).map(idx =>
+        `<div class="m-member"><span>👤</span>${escapeHtml(state.members[idx]?.name || '')}</div>`
+      ).join('');
+      cards += `<div class="m-card"><div class="m-head room"><span>🏠</span><b>${escapeHtml(r.name)}</b></div><div class="m-body">${list || '<span class="m-empty">宿泊者なし</span>'}</div></div>`;
+    });
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'mobilePreviewOverlay';
+  overlay.innerHTML = `
+    <div class="mobile-preview-shell">
+      <div class="mobile-preview-toolbar">
+        <div><b>📱 スマホ1画面表示</b><span>${title}</span></div>
+        <button id="closeMobilePreview">✕ 閉じる</button>
+      </div>
+      <div class="mobile-preview-viewport">
+        <div id="mobilePreviewCanvas" class="mobile-preview-canvas">
+          <div class="m-title"><h1>${title}</h1><p>${dateStr}　・　${groups}グループ</p></div>
+          <div class="m-grid">${cards}</div>
+          <div class="m-footer">Generated by 車割り・部屋割り決定 App</div>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const viewport = overlay.querySelector('.mobile-preview-viewport');
+  const canvas = overlay.querySelector('#mobilePreviewCanvas');
+  const fit = () => {
+    canvas.style.transform = 'scale(1)';
+    canvas.style.transformOrigin = 'top left';
+    const pad = 14;
+    const availableW = Math.max(220, viewport.clientWidth - pad * 2);
+    const availableH = Math.max(220, viewport.clientHeight - pad * 2);
+    const naturalW = canvas.scrollWidth;
+    const naturalH = canvas.scrollHeight;
+    const scale = Math.min(1, availableW / naturalW, availableH / naturalH);
+    canvas.style.transform = `scale(${scale})`;
+    canvas.style.marginLeft = `${Math.max(0, (availableW - naturalW * scale) / 2 + pad)}px`;
+    canvas.style.marginTop = `${Math.max(0, (availableH - naturalH * scale) / 2 + pad)}px`;
+  };
+  requestAnimationFrame(() => { fit(); requestAnimationFrame(fit); });
+  window.addEventListener('resize', fit, {once:true});
+  overlay.querySelector('#closeMobilePreview').onclick = () => overlay.remove();
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+};
+
+// Event listeners for mode buttons
+$('modeCarBtn').onclick = () => switchMode('car');
+$('modeRoomBtn').onclick = () => switchMode('room');
+$('modeMealBtn').onclick = () => switchMode('meal');
+
+// 割り振り画面での直接メンバー追加・全体名簿ジャンプ
+$('quickAddMemberBtn').onclick = () => {
+  const input = $('quickAddMemberName');
+  const name = cleanName(input.value);
+  if (name) {
+    state.members.push({ name: name, selected: true, gender: 'unknown' });
+    input.value = '';
+    saveMembersToStorage();
+    renderAssignGrid();
+  }
+};
+
+$('jumpToStep1Btn').onclick = () => {
+  state.stepIndex = 0;
+  renderMemberList();
+  showPanelForCurrentStep();
+};
+
+// --- 追加: データ書き出し・読み込み機能の処理 ---
+document.getElementById('exportDataBtn').onclick = () => {
+  const data = {
+    saves: localStorage.getItem(STORAGE_KEY_SAVES),
+    members: localStorage.getItem(STORAGE_KEY_MEMBERS)
+  };
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'allocation_data.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+document.getElementById('importDataInput').onchange = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.saves) localStorage.setItem(STORAGE_KEY_SAVES, data.saves);
+      if (data.members) localStorage.setItem(STORAGE_KEY_MEMBERS, data.members);
+      
+      alert('データの読み込みが完了しました。ページを再読み込みします。');
+      location.reload();
+    } catch (err) {
+      alert('ファイルの読み込みに失敗しました。正しいデータファイルを選択してください。');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+};
+
+// --- 部活会計管理の部員名簿から取り込み ---
+function getClubMembers() {
+  try {
+    const fn = window.parent && window.parent !== window ? window.parent.getClubMemberDirectory : null;
+    return typeof fn === 'function' ? fn() : null;
+  } catch (e) { return null; }
+}
+$('importClubMembersBtn').onclick = () => {
+  const names = getClubMembers();
+  if (!names || !names.length) { alert('部活会計管理の部員名簿が見つかりませんでした。'); return; }
+  let added = 0;
+  names.forEach(n => {
+    const name = cleanName(n);
+    if (name && !state.members.some(m => m.name === name)) {
+      state.members.push({ name, selected: true, gender: 'unknown' });
+      added++;
+    }
+  });
+  saveMembersToStorage();
+  renderMemberList();
+  alert(added ? `部員名簿から${added}名を追加しました。` : '部員名簿のメンバーはすべて登録済みです。');
+};
+
+// Initial Load execution
+window.onload = () => {
+  if (getClubMembers()) $('importClubMembersBtn').style.display = 'inline-flex';
+  loadMembersFromStorage();
+  state.members = (state.members || []).map(m => ({
+    name: m.name || '無名',
+    selected: m.selected !== false,
+    gender: ['male','female','unknown'].includes(m.gender) ? m.gender : 'unknown'
+  }));
+  renderSavedList();
+  renderMemberList();
+  switchMode('car');
+};
+</script>
+</body>
+</html>

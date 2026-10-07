@@ -179,7 +179,7 @@ tr:last-child td{border-bottom:0}
   .user-chip{display:none!important}
   .layout{min-height:calc(100vh - 62px - env(safe-area-inset-top))}.grid{grid-template-columns:1fr}.stat{grid-template-columns:repeat(3,1fr)}
   .form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}
-  .mobile-bottom{position:fixed;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));bottom:0;left:0;right:0;width:100%;max-width:100%;height:calc(67px + env(safe-area-inset-bottom));
+  .mobile-bottom{position:fixed;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));bottom:0;left:0;right:0;width:100%;max-width:100%;height:calc(67px + env(safe-area-inset-bottom));
     background:rgba(16,18,22,.97);backdrop-filter:blur(12px);border-top:1px solid var(--line);z-index:60;padding-bottom:env(safe-area-inset-bottom)}
   body.light .mobile-bottom{background:rgba(255,255,255,.97)}
   .mobile-bottom button{background:transparent;border:0;color:var(--muted);font-size:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
@@ -307,6 +307,14 @@ body.readonly .edit-only,body.readonly .btn.danger,body.readonly .member-admin,b
 body.readonly .check,body.readonly #accountantBtn{pointer-events:none}
 body:not(.readonly) .view-only{display:none!important}
 .mobile-settings{max-height:calc(100vh - 160px);overflow-y:auto}
+/* 席割り決定モード */
+.seats-frame{display:block;width:100%;height:calc(100vh - 72px - 60px);border:1px solid var(--line);border-radius:13px;background:#f8fafc}
+body.on-seats #statusBar{display:none}
+body.on-seats .main{padding-top:16px;padding-bottom:16px}
+@media(max-width:900px){
+  body.on-seats .main{padding:8px 6px calc(75px + env(safe-area-inset-bottom))}
+  .seats-frame{height:calc(100dvh - 56px - 67px - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 18px);border-radius:10px}
+}
 </style>
 </head>
 <body class="locked">
@@ -354,6 +362,8 @@ body:not(.readonly) .view-only{display:none!important}
   <button class="nav-btn" data-page="history" onclick="showPage('history')"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg></span>使用履歴</button>
   <button class="nav-btn" data-page="fees" onclick="showPage('fees')"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 12.5 9.2 17 19 6.5"/></svg></span>部費回収管理</button>
   <button class="nav-btn" data-page="events" onclick="showPage('events')"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 17h14l-1-7H6l-1 7Z"/><path d="m7 10 1.5-4h7L17 10M7 17v2M17 17v2M7 13h.01M17 13h.01"/></svg></span>立替・イベント管理</button>
+  <div class="nav-title">ツール</div>
+  <button class="nav-btn" data-page="seats" onclick="showPage('seats')"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>席割り決定モード</button>
   <div class="nav-title">設定</div>
   <button class="nav-btn" data-page="members" onclick="showPage('members')"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20"/><circle cx="9.5" cy="7.5" r="3.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 6.8M18 14.5a4 4 0 0 1 3 3.8V20"/></svg></span>部員管理</button>
   <button class="nav-btn edit-only" onclick="toggleSide(false);publishData()"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg></span>公開データを更新</button>
@@ -437,6 +447,10 @@ body:not(.readonly) .view-only{display:none!important}
     </div>
   </div>
 
+  <div id="page-seats" class="page hidden">
+    <iframe id="seatsFrame" class="seats-frame" title="席割り決定モード" data-src="seats.html"></iframe>
+  </div>
+
   <div id="page-members" class="page hidden">
     <div class="section-head"><h2>部員管理</h2></div>
     <div class="card pad">
@@ -467,6 +481,7 @@ body:not(.readonly) .view-only{display:none!important}
   <button data-page="history" onclick="showPage('history')"><span class="mi"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg></span>履歴</button>
   <button data-page="fees" onclick="showPage('fees')"><span class="mi"><svg viewBox="0 0 24 24"><path d="M5 12.5 9.2 17 19 6.5"/></svg></span>部費</button>
   <button data-page="events" onclick="showPage('events')"><span class="mi"><svg viewBox="0 0 24 24"><path d="M5 17h14l-1-7H6l-1 7Z"/><path d="m7 10 1.5-4h7L17 10M7 17v2M17 17v2M7 13h.01M17 13h.01"/></svg></span>立替</button>
+  <button data-page="seats" onclick="showPage('seats')"><span class="mi"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>席割り</button>
   <button data-page="settings" onclick="toggleMobileSettings()"><span class="mi"><svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="m4.9 12 .1-1.6-1.5-1.2 1.8-3.1 1.8.6A7.5 7.5 0 0 1 8.5 5l.4-1.8h3.6l.4 1.8a7.5 7.5 0 0 1 1.4.7l1.8-.6 1.8 3.1-1.5 1.2.1 1.6-.1 1.6 1.5 1.2-1.8 3.1-1.8-.6a7.5 7.5 0 0 1-1.4.7l-.4 1.8H8.9L8.5 18a7.5 7.5 0 0 1-1.4-.7l-1.8.6-1.8-3.1L5 13.6 4.9 12Z"/></svg></span>設定</button>
 </nav>
 
@@ -657,6 +672,8 @@ document.addEventListener('click',e=>{
   el.classList.remove('open');
 });
 function showPage(p){
+  document.body.classList.toggle('on-seats',p==='seats');
+  if(p==='seats'){const f=document.getElementById('seatsFrame');if(f&&!f.getAttribute('src'))f.setAttribute('src',f.dataset.src)}
   document.querySelectorAll('.page').forEach(x=>x.classList.add('hidden'));
   document.getElementById('page-'+p).classList.remove('hidden');
   document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.page===p));
@@ -1236,7 +1253,9 @@ function logout(){
   if(hasUnpublished()&&!confirm('未公開の変更があります（この端末には残ります）。ログアウトしますか？'))return;
   if(!confirm('ログアウトしますか？'))return;
   clearSession();
+  showPage('home');
   appState=null;data=null;viewSnapshot=null;
+  const sf=document.getElementById('seatsFrame');if(sf)sf.removeAttribute('src');
   showLogin();
   ['feeTable','historyTable','recentTable','eventTable','memberList'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=''});
 }
@@ -1418,6 +1437,11 @@ async function saveCredentials(){
   appState.updatedAt=Date.now();writeStore();
   closeModal();updateStatusBar();
   await publishData();
+}
+
+// 席割り決定モード（seats.html）から部員名簿を参照するための窓口
+function getClubMemberDirectory(){
+  return appState&&Array.isArray(appState.memberDirectory)?[...appState.memberDirectory]:null;
 }
 
 // ---- 起動 ----
