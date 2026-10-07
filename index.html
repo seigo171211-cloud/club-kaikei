@@ -308,12 +308,12 @@ body.readonly .check,body.readonly #accountantBtn{pointer-events:none}
 body:not(.readonly) .view-only{display:none!important}
 .mobile-settings{max-height:calc(100vh - 160px);overflow-y:auto}
 /* 席割り決定モード */
-.seats-frame{display:block;width:100%;height:calc(100vh - 72px - 60px);border:1px solid var(--line);border-radius:13px;background:#f8fafc}
+.seats-frame{display:block;width:100%;height:calc(100vh - 72px - 32px);border:0;border-radius:13px;background:transparent}
 body.on-seats #statusBar{display:none}
-body.on-seats .main{padding-top:16px;padding-bottom:16px}
+body.on-seats .main{padding-top:10px;padding-bottom:10px}
 @media(max-width:900px){
-  body.on-seats .main{padding:8px 6px calc(75px + env(safe-area-inset-bottom))}
-  .seats-frame{height:calc(100dvh - 56px - 67px - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 18px);border-radius:10px}
+  body.on-seats .main{padding:0 0 calc(67px + env(safe-area-inset-bottom))}
+  .seats-frame{height:calc(100dvh - 56px - 67px - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 8px);border-radius:0}
 }
 </style>
 </head>
@@ -1288,6 +1288,9 @@ function enterApp(remote){
   feeTerm='前期';historyFilter='all';currentEventId=null;
   document.querySelectorAll('.mode-label').forEach(el=>el.textContent=editMode?'閲覧モードに戻る':'会計担当モード');
   renderYearSelector();renderAccountant();renderAll();updateStatusBar();
+  // 席割り画面を開いていれば、新しいデータ・モードで読み直す
+  const sf=document.getElementById('seatsFrame');
+  if(sf&&sf.getAttribute('src')){try{sf.contentWindow.location.reload()}catch(_){sf.setAttribute('src',sf.dataset.src)}}
 }
 async function reloadRemote(){
   if(!sessionKey){showLogin();return}
@@ -1442,6 +1445,24 @@ async function saveCredentials(){
 // 席割り決定モード（seats.html）から部員名簿を参照するための窓口
 function getClubMemberDirectory(){
   return appState&&Array.isArray(appState.memberDirectory)?[...appState.memberDirectory]:null;
+}
+
+// 席割りデータの共有：会計データ（暗号化）の appState.seatShared に保存する
+function seatBridgeInfo(){
+  return {loggedIn:!!appState,editMode:!!editMode,unpublished:hasUnpublished()};
+}
+function getSharedSeatData(){
+  const sh=appState&&appState.seatShared;
+  return {
+    saves:sh&&Array.isArray(sh.saves)?JSON.parse(JSON.stringify(sh.saves)):[],
+    members:sh&&Array.isArray(sh.members)?JSON.parse(JSON.stringify(sh.members)):[]
+  };
+}
+function setSharedSeatData(part){
+  if(!editMode||!appState)return false;
+  appState.seatShared={...getSharedSeatData(),...JSON.parse(JSON.stringify(part||{}))};
+  save();
+  return true;
 }
 
 // ---- 起動 ----
